@@ -2,26 +2,18 @@ const CronJob = require('cron').CronJob;
 const moment = require('moment');
 
 const cron = firebase => {
-    new CronJob('*/3 * * * * *', function() {
+    new CronJob('1 1 1 * * 0-6', function() {
         firebase.ref('/cron_rules/active').once('value', function(tasks) {
-            console.log('Cron job is running...');
             const data = tasks.val();
             for (item in data) {
-                console.log(item)
                 const rules = data[item].rules;
-                // console.log(rules.rules)
                 const createdAt = data[item].createdAt;
                 rules.forEach(rule => {
-                    const days = moment().add(rules.days;
-                    const today = moment().format();
-                    const diff = today.diff(createdAt)
-                    // const diff_day = diff->d;
-                    console.log('diff: ', diff)
-                    // if (diff_day == days) {
+                    const schedule = moment(createdAt).add(rule.days, 'days').format('l');
+                    if (schedule.indexOf(moment().format('l')) != -1) {
                         // call function with data
                         // call(rule);
-                    // }
-
+                    }
                 })
              
             };

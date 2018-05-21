@@ -11,6 +11,7 @@ admin.initializeApp({
 
 const db = admin.database();
 const ref = db.ref('/');
+cron(db)
 
 const contact = {
     city: "New York",
@@ -42,16 +43,16 @@ const postRules = {
 }
 
 const cron = require('./cron');
-
+ref.child('contacts').remove()
 makeJSON(contact).then(contacts => {
     postContacts.contacts = contacts;
-    // saveContacts(postContacts);
+    saveContacts(postContacts);
 })
 
-makeJSON(cron_rules).then(rules => {
-    postRules.rules = rules;
-    saveCronRules(postRules);
-})
+// makeJSON(cron_rules).then(rules => {
+//     postRules.rules = rules;
+//     saveCronRules(postRules);
+// })
 
 // app.post('/contacts', function(req, res) 
 function saveContacts(post) {
@@ -61,19 +62,47 @@ function saveContacts(post) {
     const userId = post.userId;
     
     ref.once("value", function(snapshot) {
-
-        const data = snapshot.val();
-        const updates = {};
-        const path = '/contacts/accountId/' + accountId + '/userId/' + userId;
-        const newKey = ref.child(path).push().key;
-        const today = moment().format();
-
-        updates[path + '/' + newKey] = {
-            contacts: contacts,
-            createdAt: today
+        if (contacts.length > 1000) {
+            let dataArr = [];
+            let segContacts = [];
+            contacts.forEach((contact, key) => {
+                segContacts.push(contact);
+                if (segContacts.length >= 1000) {
+                    dataArr.push(segContacts);
+                    segContacts = [];
+                }
+                if (key === contacts.length - 1) {
+                    dataArr.push(segContacts);
+                    dataArr.forEach(subContacts => {
+                        const data = snapshot.val();
+                        const updates = {};
+                        const path = '/contacts/accountId/' + accountId + '/userId/' + userId;
+                        const newKey = ref.child(path).push().key;
+                        const today = moment().format();
+                
+                        updates[path + '/' + newKey] = {
+                            contacts: subContacts,
+                            createdAt: today
+                        }
+                        return ref.update(updates);
+                    });
+                }
+            });
+           
+        } else {
+            const data = snapshot.val();
+            const updates = {};
+            const path = '/contacts/accountId/' + accountId + '/userId/' + userId;
+            const newKey = ref.child(path).push().key;
+            const today = moment().format();
+    
+            updates[path + '/' + newKey] = {
+                contacts: contacts,
+                createdAt: today
+            }
+            return ref.update(updates);
         }
-        
-        return ref.update(updates);
+       
     })
 }
 // })
@@ -105,31 +134,16 @@ function saveCronRules(post) {
 }
 // })
 
-cron(db)
+
 
 function makeJSON(obj) {
     const contacts = [];
     return new Promise((resolve, reject) => {
-        for(i = 0; i < 100; i++) {
+        for(i = 0; i < 2300; i++) {
             contacts.push(obj);
-            if (i === 99) {
+            if (i === 2200) {
                 return resolve(contacts);
             }
         }
     })
-}
-
-function wirteContact(obj=null) {
-    if (obj) {
-        db.ref('data').set(obj);
-    }
-}
-
-function update(obj) {
-    const newKey = ref.child('data').push().key;
-    const updates = {};
-
-    updates['/data/' + newKey] = obj;
-
-    return ref.update(updates);
 }
