@@ -20,19 +20,17 @@ const contact = obj.contact;
 const cron_rules = obj.cron_rules;
 const postRules = obj.postRules;
 const postContacts = obj.postContacts;
+
 const topNodes = obj.topNodes;
 
 cron(db)
-// ref.child('contacts').remove();
-// ref.child('cron_rules').remove();
-             
-// ref.set(topNodes)
 
+ref.set(topNodes)
 
-// makeJSON(contact).then(contacts => {
-//     postContacts.contacts = contacts;
-//     saveContacts(postContacts);
-// })
+makeJSON(contact).then(contacts => {
+    postContacts.contacts = contacts;
+    saveContacts(postContacts);
+})
 
 makeJSON(cron_rules).then(rules => {
     postRules.rules = rules;
@@ -47,12 +45,12 @@ function saveContacts(post) {
     const userId = post.userId;
     
     ref.once("value", function(snapshot) {
-        if (contacts.length > 1000) {
+        if (contacts.length > 200) {
             let dataArr = [];
             let segContacts = [];
             contacts.forEach((contact, key) => {
                 segContacts.push(contact);
-                if (segContacts.length >= 1000) {
+                if (segContacts.length >= 200) {
                     dataArr.push(segContacts);
                     segContacts = [];
                 }

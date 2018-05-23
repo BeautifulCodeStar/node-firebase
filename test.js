@@ -54,7 +54,7 @@ const topNodes = {
           },
           "history" : {
             "-LAWxQXcvj_1KDMLmR0c" : {
-              "date" : "Tue Apr 17 2018 00:16:27 GMT+0000 (UTC)",
+              "date": "5/21/2018",
               "event" : "Lead Created",
               "type" : "event"
             }
@@ -65,9 +65,9 @@ const topNodes = {
 };
 
 module.exports = {
-    contact, 
-    cron_rules,
-    postRules,
-    postContacts,
-    topNodes
+  contact, 
+  cron_rules,
+  postRules,
+  postContacts,
+  topNodes
 }

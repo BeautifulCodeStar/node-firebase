@@ -18,12 +18,12 @@ const getLeadKey = function(id, accountLeads) {
 
 const getCreatedAt = function(leadKey, leadData) {
     return new Promise((resolve, reject) => {
-        for (key in leadData) {
-            if (key === leadKey) {
+        for (let key in leadData) {
+            if (key.indexOf(leadKey) !== -1) {
                 const contactData = leadData[key]['data'];
                 const history = leadData[key]['history'];
                 for (let item in history) {
-                    if (history[item]['event'] === 'Lead Crated') {
+                    if (history[item]['event'].indexOf('Lead Created') !== -1) {
                         const createdAt = history[item]['date'];
                         resolve({createdAt, contactData, leadKey});
                     }
@@ -35,22 +35,21 @@ const getCreatedAt = function(leadKey, leadData) {
 
 const creationDate = async function(accountId, data) {
     const leadKeyArr = await getLeadKey(accountId, data.account_leads);
-    console.log('leadKey:', leadKeyArr)
     let mainArr = [];
+  
     leadKeyArr.forEach(async (leadKey, index) => {
         const obj = await getCreatedAt(leadKey, data.lead_data);
-        console.log('____________________',obj)
+
         mainArr.push(obj);
         if (index === leadKeyArr.length - 1) {
-            mainArr.forEach(async obj => {
+            mainArr.forEach(obj => {
                 const createdAt = obj.createdAt;
                 const leadKey = obj.leadKey;
-                console.log('CreatedAt: ', createdAt);
-                for (key in cronRules[accountId]) {
-                    cronRules[accountId][key].forEach(async rule => {
+
+                for (let key in data.cron_rules[accountId]) {
+                    data.cron_rules[accountId][key].forEach(rule => {
                         const schedule = moment(createdAt).add(rule.days, 'days').format('l');
                         if (schedule.indexOf(moment().format('l')) != -1) {
-                            // call function with data
                             console.log('Call function with data****');
                             let action = {};
                             if (rule.type == 'email') {
@@ -66,7 +65,6 @@ const creationDate = async function(accountId, data) {
                                     number: obj.number
                                 }
                             }
-                            console.log('________');
                             console.log(action);
                             // call(action);
                         }
@@ -75,18 +73,13 @@ const creationDate = async function(accountId, data) {
             })
         }
     })
-    console.log('Date:', mainArr);
-    
 }
 
 const cron = firebase => {
-    new CronJob('*/10 * * * * *', function() {
+    new CronJob('1 1 1 * * 0-6', function() {
         firebase.ref('/').once('value', function(tasks) {
             const data = tasks.val();
             
-            const accounts = data.accounts;
-            const accountLeads = data.account_leads;
-            const leadData = data.lead_data;
             const cronRules = data.cron_rules;
 
             for (accountId in cronRules) {
