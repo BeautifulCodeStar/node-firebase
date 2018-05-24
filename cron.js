@@ -33,7 +33,18 @@ const getCreatedAt = function(leadKey, leadData) {
     })
 }
 
-const creationDate = async function(accountId, data) {
+const saveLeadCron = function(action) {
+    return new Promise((resolve, reject) => {
+        const updates = {};
+        const path = '/lead_cron/' + action.lead_key;
+
+        updates[path] = action.cron;
+        resolve(updates);
+    })
+}
+
+
+const creationDate = async function(db, accountId, data) {
     const leadKeyArr = await getLeadKey(accountId, data.account_leads);
     let mainArr = [];
   
@@ -65,6 +76,14 @@ const creationDate = async function(accountId, data) {
                                     number: obj.number
                                 }
                             }
+                            const lead_cron = {};
+                            const path = '/lead_cron/' + action.lead_key;
+                            const newKey = ref.child(path).push().key;
+                            lead_cron[path + '/' + newKey] = action.cron;
+                            console.log('____________________LeadCron____________');
+                            console.log(lead_cron);
+                            console.log('_________________________________________');
+                            db.update(lead_cron);
                             console.log(action);
                             // call(action);
                         }
@@ -77,14 +96,15 @@ const creationDate = async function(accountId, data) {
 
 const cron = firebase => {
     new CronJob('1 1 1 * * 0-6', function() {
-        firebase.ref('/').once('value', function(tasks) {
+        const db = firebase.ref('/');
+        db.once('value', function(tasks) {
             const data = tasks.val();
             
             const cronRules = data.cron_rules;
 
             for (accountId in cronRules) {
                 console.log('AccountId: ', accountId)
-                creationDate(accountId, data);
+                creationDate(db, accountId, data);
             };
         })
     }, null, true, 'America/Los_Angeles')

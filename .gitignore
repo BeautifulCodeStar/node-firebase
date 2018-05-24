@@ -1,4 +1,4 @@
 .vscode
-.gitgnore
-.credentials.json
+.gitgnor
 node_modules
+.zip
