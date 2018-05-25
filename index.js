@@ -64,14 +64,15 @@ function saveContacts(post) {
                         }
                         const leadKey = ref.child(path).push().key;
                         const newKey = ref.child(accountPath).push().key;
-                
+                        // for lead_data
                         updates[path + '/' + leadKey] = {
                             data: subContact,
                             source: 'import'
                         }
+                        // for account_leads
                         updates[accountPath + '/' + newKey] = leadKey;
                         if (index === subContact.length - 1) {
-                            ref.update(updates);
+                            return ref.update(updates);
                         }
                     });
                 }
@@ -92,7 +93,7 @@ function saveContacts(post) {
                 };
                 updates[accountPath + '/' + newKey] = leadKey;
                 if (key === contacts.length - 1) {
-                    ref.update(updates);
+                    return ref.update(updates);
                 }
             });
         }
