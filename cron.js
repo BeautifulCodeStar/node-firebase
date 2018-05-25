@@ -33,16 +33,16 @@ const getCreatedAt = function(leadKey, leadData) {
     })
 }
 
-const saveLeadCron = function(action) {
+const leadKeyCheck = function(leadKey, leadCronData) {
     return new Promise((resolve, reject) => {
-        const updates = {};
-        const path = '/lead_cron/' + action.lead_key;
-
-        updates[path] = action.cron;
-        resolve(updates);
+        for (let key in leadCronData) {
+            if (key.indexOf(leadKey) !== -1)  {
+                reject(false);
+            }
+        }
+        resolve(true);
     })
 }
-
 
 const creationDate = async function(db, accountId, data) {
     const leadKeyArr = await getLeadKey(accountId, data.account_leads);
@@ -50,44 +50,47 @@ const creationDate = async function(db, accountId, data) {
   
     leadKeyArr.forEach(async (leadKey, index) => {
         const obj = await getCreatedAt(leadKey, data.lead_data);
-
+     
         mainArr.push(obj);
         if (index === leadKeyArr.length - 1) {
-            mainArr.forEach(obj => {
+            mainArr.forEach(async obj => {
                 const createdAt = obj.createdAt;
                 const leadKey = obj.leadKey;
 
+                // leadKey check
+                const leadKeyFlag = await leadKeyCheck(leadKey, data.lead_cron);
+                if (leadKeyFlag) { // exist
+                    return false;
+                }
+
                 for (let key in data.cron_rules[accountId]) {
-                    data.cron_rules[accountId][key].forEach(rule => {
-                        const schedule = moment(createdAt).add(rule.days, 'days').format('l');
-                        if (schedule.indexOf(moment().format('l')) != -1) {
-                            console.log('Call function with data****');
-                            let action = {};
-                            if (rule.type == 'email') {
-                                action = {
-                                    cron: rule,
-                                    lead_key: leadKey,
-                                    email: obj.email
-                                }
-                            } else {
-                                action = {
-                                    cron: rule,
-                                    lead_key: leadKey,
-                                    number: obj.number
-                                }
+                    const rule = data.cron_rules[accountId][key]
+                    const scheduleDate = moment(createdAt).add(rule.days, 'days').format('l');
+                    if (scheduleDate.indexOf(moment().format('l')) != -1) {
+                        let action = {};
+                        if (rule.type == 'email') {
+                            action = {
+                                cron: rule,
+                                lead_key: leadKey,
+                                email: obj.email
                             }
-                            const lead_cron = {};
-                            const path = '/lead_cron/' + action.lead_key;
-                            const newKey = ref.child(path).push().key;
-                            lead_cron[path + '/' + newKey] = action.cron;
-                            console.log('____________________LeadCron____________');
-                            console.log(lead_cron);
-                            console.log('_________________________________________');
-                            db.update(lead_cron);
-                            console.log(action);
-                            // call(action);
+                        } else {
+                            action = {
+                                cron: rule,
+                                lead_key: leadKey,
+                                number: obj.number
+                            }
                         }
-                    })
+
+                        // Save lead_cron
+                        const lead_cron = {};
+                        const path = '/lead_cron/' + action.lead_key;
+                        const newKey = ref.child(path).push().key;
+                        lead_cron[path + '/' + newKey] = action.cron;
+                        db.update(lead_cron);
+
+                        // Call action with data
+                    }
                 }
             })
         }

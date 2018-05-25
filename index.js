@@ -7,13 +7,11 @@ const keys = require('./credentials.json');
 
 admin.initializeApp({
     credential: admin.credential.cert(keys),
-	databaseURL: 'https://rapid-being-177513.firebaseio.com'
+    databaseURL: 'https://the-tokenizer-177515.firebaseio.com'
 })
 
 const db = admin.database();
 const cron = require('./cron');
-
-const ref = db.ref('/');
 
 const obj = require('./test');
 const contact = obj.contact;
@@ -25,8 +23,6 @@ const topNodes = obj.topNodes;
 
 cron(db)
 
-ref.set(topNodes)
-
 makeJSON(contact).then(contacts => {
     postContacts.contacts = contacts;
     saveContacts(postContacts);
@@ -37,14 +33,17 @@ makeJSON(cron_rules).then(rules => {
     saveCronRules(postRules);
 })
 
-// app.post('/contacts', function(req, res) 
 function saveContacts(post) {
+    const ref = db.ref('/');
     const contacts = post.contacts;
 
     const accountId = post.accountId;
     const userId = post.userId;
     
+    const path = '/lead_data';
+    const accountPath = '/account_leads/' + accountId + '/leads';
     ref.once("value", function(snapshot) {
+        const data = snapshot.val();
         if (contacts.length > 200) {
             let dataArr = [];
             let segContacts = [];
@@ -56,63 +55,68 @@ function saveContacts(post) {
                 }
                 if (key === contacts.length - 1) {
                     dataArr.push(segContacts);
-                    dataArr.forEach(subContacts => {
-                        const data = snapshot.val();
-                        const updates = {};
-                        const path = '/contacts/accountId/' + accountId + '/userId/' + userId;
-                        const newKey = ref.child(path).push().key;
-                        const today = moment().format();
-                
-                        updates[path + '/' + newKey] = {
-                            contacts: subContacts,
-                            createdAt: today
+                    const updates = {};
+                    dataArr.forEach((subContact, index) => {
+                        if (subContact['number']) {
+                            if (!data['conversations'][accountId][subContact['number']]) {
+                                return false;
+                            }
                         }
-                        return ref.update(updates);
+                        const leadKey = ref.child(path).push().key;
+                        const newKey = ref.child(accountPath).push().key;
+                
+                        updates[path + '/' + leadKey] = {
+                            data: subContact,
+                            source: 'import'
+                        }
+                        updates[accountPath + '/' + newKey] = leadKey;
+                        if (index === subContact.length - 1) {
+                            ref.update(updates);
+                        }
                     });
                 }
             });
-           
         } else {
-            const data = snapshot.val();
-            const updates = {};
-            const path = '/contacts/accountId/' + accountId + '/userId/' + userId;
-            const newKey = ref.child(path).push().key;
-            const today = moment().format();
-    
-            updates[path + '/' + newKey] = {
-                contacts: contacts,
-                createdAt: today
-            }
-            return ref.update(updates);
+            const update = {};
+            contacts.forEach((contact, key) => {
+                if (contact['number']) {
+                    if (!data['conversations'][accountId][contact['number']]) {
+                        return false;
+                    }
+                }
+                const leadKey = ref.child(path).push().key;
+                const newKey = ref.child(accountPath).push().key;
+                updates[path + '/' + leadKey] = {
+                    data: contact,
+                    source: 'import'
+                };
+                updates[accountPath + '/' + newKey] = leadKey;
+                if (key === contacts.length - 1) {
+                    ref.update(updates);
+                }
+            });
         }
-       
-    })
+    });
 }
-// })
 
-// app.post('/rules', function(req, res) 
 function saveCronRules(post) {
-    const rules = post.rules;
+    const ref = db.ref('/cron_rules');
 
+    const rules = post.rules;
     const accountId = post.accountId;
     const userId = post.userId;
     
     ref.once("value", function(snapshot) {
-
         const data = snapshot.val();
         const updates = {};
-        const path = '/cron_rules/' + accountId;
+        const path = '/' + accountId;
         const newKey = ref.child(path).push().key;
-        const today = moment().format();
-
-        updates[path + '/' + newKey] = rules
-        
+        rules.forEach(rule => {
+            updates[path + '/' + newKey] = rule;
+        })
         return ref.update(updates);
     })
 }
-// })
-
-
 
 function makeJSON(obj) {
     const contacts = [];
