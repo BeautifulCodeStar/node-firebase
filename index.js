@@ -3,6 +3,7 @@ const app = express();
 const router = express.Router();
 const admin = require('firebase-admin');
 const moment = require('moment');
+const async = require('async');
 const keys = require('./credentials.json');
 
 admin.initializeApp({
@@ -41,7 +42,9 @@ function saveContacts(post) {
     const userId = post.userId;
     
     const path = '/lead_data';
+    const uploadPath = 'lead_upload/' + accountId;
     const accountPath = '/account_leads/' + accountId + '/leads';
+    let leadKeyArr = [];
     ref.once("value", function(snapshot) {
         const data = snapshot.val();
         if (contacts.length > 200) {
@@ -56,25 +59,46 @@ function saveContacts(post) {
                 if (key === contacts.length - 1) {
                     dataArr.push(segContacts);
                     const updates = {};
-                    dataArr.forEach((subContact, index) => {
-                        if (subContact['number']) {
-                            if (!data['conversations'][accountId][subContact['number']]) {
-                                return false;
+                    dataArr.forEach((segContact, index) => {
+                        segContact.forEach((subContact, ind) => {
+                            if (subContact['number']) {
+                                if (!data['conversations'][accountId][subContact['number']]) {
+                                    return false;
+                                }
                             }
-                        }
-                        const leadKey = ref.child(path).push().key;
-                        const newKey = ref.child(accountPath).push().key;
-                        // for lead_data
-                        updates[path + '/' + leadKey] = {
-                            data: subContact,
-                            source: 'import'
-                        }
-                        // for account_leads
-                        updates[accountPath + '/' + newKey] = leadKey;
-                        if (index === subContact.length - 1) {
-                            return ref.update(updates);
-                        }
+                            const leadKey = ref.child(path).push().key;
+                            leadKeyArr.push(leadKey);
+                            const newKey = ref.child(accountPath).push().key;
+                            // for lead_data
+                            updates[path + '/' + leadKey] = {
+                                data: subContact,
+                                history: {
+                                    date: moment().format(),
+                                    event: "Lead Created",
+                                    type: 'event'
+                                },
+                                source: 'import'
+                            }
+                          
+                            // for account_leads
+                            updates[accountPath + '/' + newKey] = leadKey;
+                            if (index === subContact.length - 1) {
+                                ref.update(updates);
+                            }
+                        })
                     });
+                    // for lead_upload
+                    const leadUploadKey = ref.child(uploadPath).push().key;
+                    updates[uploadPath + '/' + leadUploadKey] = {
+                        date: moment().format('l'),
+                        numberOfContacts: contacts.length,
+                        leads: leadKeyArr
+                    };
+                    ref.update(updates);
+                    return {
+                        status: 200,
+                        numberOfContacts: contacts.length
+                    };
                 }
             });
         } else {
@@ -86,14 +110,26 @@ function saveContacts(post) {
                     }
                 }
                 const leadKey = ref.child(path).push().key;
+                leadKeyArr.push(leadKey);
                 const newKey = ref.child(accountPath).push().key;
                 updates[path + '/' + leadKey] = {
                     data: contact,
                     source: 'import'
                 };
                 updates[accountPath + '/' + newKey] = leadKey;
-                if (key === contacts.length - 1) {
-                    return ref.update(updates);
+                if (key == contacts.length - 1) {
+                    // for lead_upload
+                    const leadUploadKey = ref.child(uploadPath).push().key;
+                    updates[uploadPath + '/' + leadUploadKey] = {
+                        date: moment().format('l'),
+                        numberOfContacts: contacts.length,
+                        leads: leadKeyArr
+                    };
+                    ref.update(updates);
+                    return {
+                        status: 200,
+                        numberOfContacts: contacts.length
+                    };
                 }
             });
         }
